@@ -1,0 +1,67 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 2.95kB done
+#1 DONE 0.0s
+
+#2 [internal] load metadata for docker.io/library/debian:stable-slim
+#2 DONE 0.4s
+
+#3 [internal] load .dockerignore
+#3 transferring context: 2B done
+#3 DONE 0.0s
+
+#4 [ 1/12] FROM docker.io/library/debian:stable-slim@sha256:d6743b7859c917a488ca39f4ab5e174011305f50b44ce32d3b9ea5d81b291b3b
+#4 resolve docker.io/library/debian:stable-slim@sha256:d6743b7859c917a488ca39f4ab5e174011305f50b44ce32d3b9ea5d81b291b3b 0.0s done
+#4 DONE 0.0s
+
+#5 [ 3/12] RUN ARCH=$(dpkg --print-architecture) && 	GO_VERSION="1.23.4" && 	wget -q https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz && 	tar -C /usr/local -xzf go${GO_VERSION}.linux-${ARCH}.tar.gz && 	rm go${GO_VERSION}.linux-${ARCH}.tar.gz
+#5 CACHED
+
+#6 [ 4/12] RUN git clone https://github.com/ffuf/ffuf /tmp/ffuf && 	cd /tmp/ffuf && 	go build -o /usr/local/bin/ffuf && 	rm -rf /tmp/ffuf
+#6 CACHED
+
+#7 [ 5/12] RUN git clone https://github.com/OJ/gobuster /tmp/gobuster && 	cd /tmp/gobuster && 	go build -o /usr/local/bin/gobuster && 	rm -rf /tmp/gobuster
+#7 CACHED
+
+#8 [ 6/12] RUN apt-get update && apt-get install -y --no-install-recommends dirb libcurl4-openssl-dev python3-pycurl && 	apt-get install -y wfuzz || echo "wfuzz not available in apt, skipping" && 	rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [ 2/12] RUN apt-get update && apt-get install -y --no-install-recommends 	ca-certificates 	curl 	wget 	git 	nano 	build-essential 	libssl-dev 	zlib1g-dev 	libbz2-dev 	libreadline-dev 	libsqlite3-dev 	libncurses5-dev 	libncursesw5-dev 	xz-utils 	tk-dev 	libffi-dev 	liblzma-dev 	python3-dev 	python3-pip 	pkg-config 	libpcap-dev 	&& rm -rf /var/lib/apt/lists/*
+#9 CACHED
+
+#10 [ 7/12] RUN apt-get update && apt-get install -y --no-install-recommends 	libssl-dev 	yasm 	libgmp-dev 	libpcap-dev 	libbz2-dev 	&& rm -rf /var/lib/apt/lists/* && 	git clone https://github.com/openwall/john /opt/john && 	cd /opt/john/src && 	./configure && 	make -s clean && make -j$(nproc) && 	ln -s /opt/john/run/john /usr/local/bin/john
+#10 CACHED
+
+#11 [ 8/12] RUN apt-get update && apt-get install -y --no-install-recommends 	ocl-icd-libopencl1 	pocl-opencl-icd 	&& rm -rf /var/lib/apt/lists/* && 	git clone https://github.com/hashcat/hashcat /tmp/hashcat && 	cd /tmp/hashcat && 	make && 	make install && 	rm -rf /tmp/hashcat
+#11 0.277 Get:1 http://deb.debian.org/debian stable InRelease [140 kB]
+#11 0.330 Get:2 http://deb.debian.org/debian stable-updates InRelease [47.3 kB]
+#11 0.355 Get:3 http://deb.debian.org/debian-security stable-security InRelease [43.4 kB]
+#11 0.375 Get:4 http://deb.debian.org/debian stable/main amd64 Packages [9669 kB]
+#11 1.668 Get:5 http://deb.debian.org/debian stable-updates/main amd64 Packages [5412 B]
+#11 1.695 Get:6 http://deb.debian.org/debian-security stable-security/main amd64 Packages [57.7 kB]
+#11 2.326 Fetched 9963 kB in 2s (4743 kB/s)
+#11 2.326 Reading package lists...
+#11 2.821 Reading package lists...
+#11 3.294 Building dependency tree...
+#11 3.418 Reading state information...
+#11 3.562 The following additional packages will be installed:
+#11 3.562   clang-18 libclang-common-18-dev libclang-cpp18 libclang1-18 libedit2 libgc1
+#11 3.562   libhwloc15 libllvm18 libllvmspirvlib18.1 libobjc-14-dev libobjc4
+#11 3.562   libpocl2-common libpocl2t64 libxml2 libz3-4 llvm-18-linker-tools
+#11 3.562   llvm-spirv-18
+#11 3.563 Suggested packages:
+#11 3.563   clang-18-doc wasi-libc libhwloc-contrib-plugins
+#11 3.563 Recommended packages:
+#11 3.563   llvm-18-dev libclang-rt-18-dev libhwloc-plugins
+#11 3.703 The following NEW packages will be installed:
+#11 3.703   clang-18 libclang-common-18-dev libclang-cpp18 libclang1-18 libedit2 libgc1
+#11 3.703   libhwloc15 libllvm18 libllvmspirvlib18.1 libobjc-14-dev libobjc4
+#11 3.703   libpocl2-common libpocl2t64 libxml2 libz3-4 llvm-18-linker-tools
+#11 3.704   llvm-spirv-18 ocl-icd-libopencl1 pocl-opencl-icd
+#11 3.764 0 upgraded, 19 newly installed, 0 to remove and 0 not upgraded.
+#11 3.764 Need to get 72.6 MB of archives.
+#11 3.764 After this operation, 368 MB of additional disk space will be used.
+#11 3.764 Get:1 http://deb.debian.org/debian stable/main amd64 libedit2 amd64 3.1-20250104-1 [93.8 kB]
+#11 3.845 Get:2 http://deb.debian.org/debian stable/main amd64 libxml2 amd64 2.12.7+dfsg+really2.9.14-2.1+deb13u1 [698 kB]
+#11 4.023 Get:3 http://deb.debian.org/debian stable/main amd64 libz3-4 amd64 4.13.3-1 [8560 kB]
