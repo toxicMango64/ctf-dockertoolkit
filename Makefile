@@ -3,7 +3,7 @@ TAG=latest
 IMAGE=$(IMAGE_NAME):$(TAG)
 
 .PHONY: all
-all: pre-install build
+all: pre-install build run
 
 .PHONY: pre-install
 pre-install:
