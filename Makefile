@@ -12,6 +12,7 @@ pre-install:
 
 .PHONY: build
 build:
+	yes | sh ./install.sh
 	docker build -t $(IMAGE) .
 
 .PHONY: run
