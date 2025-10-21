@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	python3-pip \
 	pkg-config \
 	libpcap-dev \
-	&& rm -rf /var/lib/apt/lists/*
+	p7zip-full
 
 
 RUN ARCH=$(dpkg --print-architecture) && \
@@ -49,32 +49,76 @@ RUN git clone https://github.com/OJ/gobuster /tmp/gobuster && \
 	go build -o /usr/local/bin/gobuster && \
 	rm -rf /tmp/gobuster
 
-RUN apt-get update && apt-get install -y --no-install-recommends dirb libcurl4-openssl-dev python3-pycurl && \
-	apt-get install -y wfuzz || echo "wfuzz not available in apt, skipping" && \
-	rm -rf /var/lib/apt/lists/*
+RUN apt-get install -y --no-install-recommends dirb libcurl4-openssl-dev python3-pycurl && \
+	apt-get install -y wfuzz || echo "wfuzz not available in apt, skipping"
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get install -y --no-install-recommends \
 	libssl-dev \
 	yasm \
 	libgmp-dev \
 	libpcap-dev \
 	libbz2-dev \
-	&& rm -rf /var/lib/apt/lists/* && \
-	git clone https://github.com/openwall/john /opt/john && \
+	&& git clone https://github.com/openwall/john /opt/john && \
 	cd /opt/john/src && \
 	./configure && \
 	make -s clean && make -j$(nproc) && \
 	ln -s /opt/john/run/john /usr/local/bin/john
 
+
+# HASHCAT DEBUGGING
+
+# # RUN apt-get install -y --no-install-recommends \
+# # 	ocl-icd-libopencl1 \
+# # 	pocl-opencl-icd \
+# # 	&& git clone https://github.com/hashcat/hashcat /tmp/hashcat && \
+# RUN git clone https://github.com/hashcat/hashcat /tmp/hashcat && \
+# 	cd /tmp/hashcat && \
+# 	make && \
+# 	make install && \
+# 	rm -rf /tmp/hashcat
+
+# # Multi-stage: extract in builder, copy to final
+# FROM debian:stable-slim AS hashcat-builder
+# RUN apt-get update && apt-get install -y --no-install-recommends curl p7zip-full && rm -rf /var/lib/apt/lists/*
+# ARG HASHCAT_VERSION=6.2.6
+# RUN ARCH=$(dpkg --print-architecture) && \
+#     HASHCAT_ARCH="linux64" && [ "$ARCH" = "arm64" ] && HASHCAT_ARCH="linuxarm64" || true && \
+#     cd /tmp && \
+#     curl -sSL https://github.com/hashcat/hashcat/releases/download/v${HASHCAT_VERSION}/hashcat-${HASHCAT_VERSION}.7z -o hashcat.7z && \
+#     7z x hashcat.7z && \
+#     mv hashcat-${HASHCAT_VERSION} /out
+
+# # In your main image:
+# COPY --from=hashcat-builder /out /opt/hashcat
+# RUN ln -s /opt/hashcat/hashcat.bin /usr/local/bin/hashcat
+
+# Install minimal OpenCL runtime (only what's needed for hashcat binary)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-	ocl-icd-libopencl1 \
-	pocl-opencl-icd \
-	&& rm -rf /var/lib/apt/lists/* && \
-	git clone https://github.com/hashcat/hashcat /tmp/hashcat && \
-	cd /tmp/hashcat && \
-	make && \
-	make install && \
-	rm -rf /tmp/hashcat
+    ocl-icd-libopencl1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download and install prebuilt hashcat binary
+RUN ARCH=$(dpkg --print-architecture) && \
+    HASHCAT_VERSION="6.2.6" && \
+    if [ "$ARCH" = "amd64" ]; then \
+        HASHCAT_ARCH="linux64"; \
+    elif [ "$ARCH" = "arm64" ]; then \
+        HASHCAT_ARCH="linuxarm64"; \
+    else \
+        echo "Unsupported architecture: $ARCH"; exit 1; \
+    fi && \
+    cd /tmp && \
+    curl -sSL https://github.com/hashcat/hashcat/releases/download/v${HASHCAT_VERSION}/hashcat-${HASHCAT_VERSION}.7z \
+         -o hashcat.7z && \
+    apt-get update && apt-get install -y --no-install-recommends p7zip-full && \
+    7z x hashcat.7z && \
+    mv hashcat-${HASHCAT_VERSION} /opt/hashcat && \
+    ln -s /opt/hashcat/hashcat.bin /usr/local/bin/hashcat && \
+    rm -rf hashcat.7z && \
+    apt-get purge -y p7zip-full && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
 
 RUN pip3 install --no-cache-dir --break-system-packages \
 	requests \
@@ -82,7 +126,8 @@ RUN pip3 install --no-cache-dir --break-system-packages \
 	selenium \
 	paramiko \
 	pycryptodome \
-	scapy
+	scapy \
+	&& rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -s /bin/bash secuser && \
 	mkdir -p /workspace && \

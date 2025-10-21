@@ -3,7 +3,12 @@ TAG=latest
 IMAGE=$(IMAGE_NAME):$(TAG)
 
 .PHONY: all
-all: build post-install
+all: pre-install build
+
+.PHONY: pre-install
+pre-install:
+	chmod +x ./install.sh
+	yes | sh ./install.sh
 
 .PHONY: build
 build:
@@ -12,12 +17,3 @@ build:
 .PHONY: run
 run:
 	docker run -it -v "$(shell pwd)":/workspace $(IMAGE)
-	yes | sh ./install
-
-.PHONY: post-install
-post-install:
-	yes | sh ./install
-
-.PHONY: clean
-clean:
-	@echo "No clean step defined."

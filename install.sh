@@ -12,9 +12,6 @@ YELLOW='\033[0;33m'
 GRAY='\033[0;37m'
 NC='\033[0m'
 
-# build file path
-buildPath="$repoPath/build"
-
 echo -e "${YELLOW}Are you in 42 lab? (y/n)${NC}"
 read answer42
 
@@ -23,13 +20,11 @@ if [ "$answer42" = "y" ] || [ "$answer42" = "Y" ]; then
     if [ -x "$(command -v docker-compose)" ]; then
         echo -e "${GREEN}Good news, you have docker on your system 😎😁${NC}"
         sleep 1
-        # check docker if running if true kill it
         if [ "$(docker ps)" ]; then
             echo -e "${YELLOW}Docker is running, we will kill it${NC}"
             test -z "$(docker ps -q 2>/dev/null)" && osascript -e 'quit app "Docker"'
             sleep 1
         fi
-        # command
     else
       echo -e "${RED}You need install docker on your system from${NC} "
       sleep 2
@@ -46,12 +41,7 @@ if [ "$answer42" = "y" ] || [ "$answer42" = "Y" ]; then
         echo -e "${RED}You are not in a 42 lab${NC}"
         exit 1
     fi
-  #  if [ "$(docker ps)" ]; then
-  #      echo -e "${YELLOW}Docker is running, we will kill it${NC}"
-  #      test -z "$(docker ps -q 2>/dev/null)" && osascript -e 'quit app "Docker"'
-  #      sleep 1
-  #  fi
-    # wait till docker work well
+
     rm -rf ~/goinfre/docker
     echo -e "${YELLOW}Wait till docker is Running${NC}"
     mkdir -p ~/goinfre/com.docker.docker
@@ -104,15 +94,4 @@ if [ "$answer42" = "y" ] || [ "$answer42" = "Y" ]; then
 else
   echo -e "${RED}Only For 42 labs, Thanks for all the FISH${NC}"
   exit
-fi  # end if answer42
-
-if [ ! "$(docker images -a | grep valgrind)" ] ;then
-  echo "Installing Valgrind 🍽"
-  chmod a+rwx "$buildPath"
-  /bin/bash $buildPath
-  wait
-  exit
-else 
-  echo "Everything is Fine... Prepare to listen to Vogon Poetry! 😇"
-  exit
-fi
+fi  
