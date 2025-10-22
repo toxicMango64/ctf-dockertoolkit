@@ -7,6 +7,7 @@ all: pre-install build run
 
 .PHONY: pre-install
 pre-install:
+	git pull
 	chmod +x ./install.sh
 	yes | sh ./install.sh
 
