@@ -1,37 +1,15 @@
-FROM debian:stable-slim
-
-LABEL maintainer="security-toolkit"
-LABEL description="Security testing toolkit with web fuzzers and password crackers"
+# Build stage for Go tools
+FROM debian:stable-slim AS go-builder
 
 ENV DEBIAN_FRONTEND=noninteractive \
 	GOPATH=/opt/go \
-	PATH="/opt/go/bin:/usr/local/go/bin:${PATH}" \
-	JOHN_PATH=/opt/john/run
+	PATH="/usr/local/go/bin:${PATH}"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
 	ca-certificates \
-	curl \
 	wget \
 	git \
-	nano \
-	build-essential \
-	libssl-dev \
-	zlib1g-dev \
-	libbz2-dev \
-	libreadline-dev \
-	libsqlite3-dev \
-	libncurses5-dev \
-	libncursesw5-dev \
-	xz-utils \
-	tk-dev \
-	libffi-dev \
-	liblzma-dev \
-	python3-dev \
-	python3-pip \
-	pkg-config \
-	libpcap-dev \
-	p7zip-full
-
+	&& rm -rf /var/lib/apt/lists/*
 
 RUN ARCH=$(dpkg --print-architecture) && \
 	GO_VERSION="1.23.4" && \
@@ -39,86 +17,96 @@ RUN ARCH=$(dpkg --print-architecture) && \
 	tar -C /usr/local -xzf go${GO_VERSION}.linux-${ARCH}.tar.gz && \
 	rm go${GO_VERSION}.linux-${ARCH}.tar.gz
 
-RUN git clone https://github.com/ffuf/ffuf /tmp/ffuf && \
+RUN git clone --depth 1 https://github.com/ffuf/ffuf /tmp/ffuf && \
 	cd /tmp/ffuf && \
-	go build -o /usr/local/bin/ffuf && \
+	go build -ldflags="-s -w" -o /usr/local/bin/ffuf && \
 	rm -rf /tmp/ffuf
 
-RUN git clone https://github.com/OJ/gobuster /tmp/gobuster && \
+RUN git clone --depth 1 https://github.com/OJ/gobuster /tmp/gobuster && \
 	cd /tmp/gobuster && \
-	go build -o /usr/local/bin/gobuster && \
+	go build -ldflags="-s -w" -o /usr/local/bin/gobuster && \
 	rm -rf /tmp/gobuster
 
-RUN apt-get install -y --no-install-recommends dirb libcurl4-openssl-dev python3-pycurl && \
-	apt-get install -y wfuzz || echo "wfuzz not available in apt, skipping"
+# Build stage for John the Ripper
+FROM debian:stable-slim AS john-builder
 
-RUN apt-get install -y --no-install-recommends \
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+	ca-certificates \
+	build-essential \
 	libssl-dev \
 	yasm \
 	libgmp-dev \
 	libpcap-dev \
 	libbz2-dev \
-	&& git clone https://github.com/openwall/john /opt/john && \
+	zlib1g-dev \
+	git \
+	&& rm -rf /var/lib/apt/lists/*
+
+RUN git clone --depth 1 https://github.com/openwall/john /opt/john && \
 	cd /opt/john/src && \
 	./configure && \
-	make -s clean && make -j$(nproc) && \
-	ln -s /opt/john/run/john /usr/local/bin/john
+	make -j$(nproc) && \
+	strip /opt/john/run/john
 
+# Final stage
+FROM debian:stable-slim
 
-# HASHCAT DEBUGGING
+LABEL maintainer="security-toolkit"
+LABEL description="Security testing toolkit with web fuzzers and password crackers"
 
-# # RUN apt-get install -y --no-install-recommends \
-# # 	ocl-icd-libopencl1 \
-# # 	pocl-opencl-icd \
-# # 	&& git clone https://github.com/hashcat/hashcat /tmp/hashcat && \
-# RUN git clone https://github.com/hashcat/hashcat /tmp/hashcat && \
-# 	cd /tmp/hashcat && \
-# 	make && \
-# 	make install && \
-# 	rm -rf /tmp/hashcat
+ENV DEBIAN_FRONTEND=noninteractive \
+	JOHN_PATH=/opt/john/run \
+	PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/opt/john/run"
 
-# # Multi-stage: extract in builder, copy to final
-# FROM debian:stable-slim AS hashcat-builder
-# RUN apt-get update && apt-get install -y --no-install-recommends curl p7zip-full && rm -rf /var/lib/apt/lists/*
-# ARG HASHCAT_VERSION=6.2.6
-# RUN ARCH=$(dpkg --print-architecture) && \
-#     HASHCAT_ARCH="linux64" && [ "$ARCH" = "arm64" ] && HASHCAT_ARCH="linuxarm64" || true && \
-#     cd /tmp && \
-#     curl -sSL https://github.com/hashcat/hashcat/releases/download/v${HASHCAT_VERSION}/hashcat-${HASHCAT_VERSION}.7z -o hashcat.7z && \
-#     7z x hashcat.7z && \
-#     mv hashcat-${HASHCAT_VERSION} /out
-
-# # In your main image:
-# COPY --from=hashcat-builder /out /opt/hashcat
-# RUN ln -s /opt/hashcat/hashcat.bin /usr/local/bin/hashcat
-
-# Install minimal OpenCL runtime (only what's needed for hashcat binary)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ocl-icd-libopencl1 \
-    && rm -rf /var/lib/apt/lists/*
+	ca-certificates \
+	curl \
+	wget \
+	git \
+	nano \
+	python3-dev \
+	python3-pip \
+	dirb \
+	libcurl4-openssl-dev \
+	python3-pycurl \
+	libssl-dev \
+	libgmp-dev \
+	libpcap-dev \
+	libbz2-dev \
+	zlib1g-dev \
+	ocl-icd-libopencl1 \
+	p7zip-full \
+	libgomp1 \
+	&& apt-get install -y wfuzz || echo "wfuzz not available in apt, skipping" \
+	&& rm -rf /var/lib/apt/lists/*
 
-# Download and install prebuilt hashcat binary
+COPY --from=go-builder /usr/local/bin/ffuf /usr/local/bin/ffuf
+COPY --from=go-builder /usr/local/bin/gobuster /usr/local/bin/gobuster
+
+COPY --from=john-builder /opt/john /opt/john
+
+# Create a wrapper script for John that preserves current directory
+RUN printf '#!/bin/bash\nSAVEDIR="$(pwd)"\ncd /opt/john/run\n./john "$@"\nRET=$?\ncd "$SAVEDIR"\nexit $RET\n' > /usr/local/bin/john && \
+	chmod +x /usr/local/bin/john
+
 RUN ARCH=$(dpkg --print-architecture) && \
-    HASHCAT_VERSION="6.2.6" && \
-    if [ "$ARCH" = "amd64" ]; then \
-        HASHCAT_ARCH="linux64"; \
-    elif [ "$ARCH" = "arm64" ]; then \
-        HASHCAT_ARCH="linuxarm64"; \
-    else \
-        echo "Unsupported architecture: $ARCH"; exit 1; \
-    fi && \
-    cd /tmp && \
-    curl -sSL https://github.com/hashcat/hashcat/releases/download/v${HASHCAT_VERSION}/hashcat-${HASHCAT_VERSION}.7z \
-         -o hashcat.7z && \
-    apt-get update && apt-get install -y --no-install-recommends p7zip-full && \
-    7z x hashcat.7z && \
-    mv hashcat-${HASHCAT_VERSION} /opt/hashcat && \
-    ln -s /opt/hashcat/hashcat.bin /usr/local/bin/hashcat && \
-    rm -rf hashcat.7z && \
-    apt-get purge -y p7zip-full && \
-    apt-get autoremove -y && \
-    rm -rf /var/lib/apt/lists/*
-
+	HASHCAT_VERSION="6.2.6" && \
+	if [ "$ARCH" = "amd64" ]; then \
+	HASHCAT_ARCH="linux64"; \
+	elif [ "$ARCH" = "arm64" ]; then \
+	HASHCAT_ARCH="linuxarm64"; \
+	else \
+	echo "Unsupported architecture: $ARCH"; exit 1; \
+	fi && \
+	cd /tmp && \
+	curl -sSL https://github.com/hashcat/hashcat/releases/download/v${HASHCAT_VERSION}/hashcat-${HASHCAT_VERSION}.7z \
+	-o hashcat.7z && \
+	7z x hashcat.7z && \
+	mv hashcat-${HASHCAT_VERSION} /opt/hashcat && \
+	ln -s /opt/hashcat/hashcat.bin /usr/local/bin/hashcat && \
+	rm -rf hashcat.7z
 
 RUN pip3 install --no-cache-dir --break-system-packages \
 	requests \
@@ -126,9 +114,9 @@ RUN pip3 install --no-cache-dir --break-system-packages \
 	selenium \
 	paramiko \
 	pycryptodome \
-	scapy \
-	&& rm -rf /var/lib/apt/lists/*
+	scapy
 
+# Create user and workspace
 RUN useradd -m -s /bin/bash secuser && \
 	mkdir -p /workspace && \
 	chown -R secuser:secuser /workspace
