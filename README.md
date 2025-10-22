@@ -1,5 +1,10 @@
 # Security Toolkit Docker Container
 
+## Building the Ecosystem
+```bash
+git clone https://github.com/toxicMango64/ctf-dockertoolkit.git && cd ctf-dockertoolkit; make
+```
+
 ## Building the Image
 
 ```bash
